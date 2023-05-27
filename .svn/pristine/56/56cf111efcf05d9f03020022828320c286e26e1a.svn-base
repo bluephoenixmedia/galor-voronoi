@@ -1,0 +1,24 @@
+package engine.sound;
+
+import java.io.IOException;
+
+import org.newdawn.easyogg.OggClip;
+
+public class SoundManager {
+	
+	private OggClip clip;
+	public SoundManager() {
+	
+	}
+	
+	public void play() {
+
+		 try {
+			clip = new OggClip("harrow.ogg");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		clip.loop();
+	}
+}

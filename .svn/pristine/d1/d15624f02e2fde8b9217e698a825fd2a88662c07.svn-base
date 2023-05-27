@@ -1,0 +1,198 @@
+package engine.model;
+
+
+import java.util.ArrayList;
+
+import javax.vecmath.Vector2d;
+
+
+
+/**
+ * The simulated creature (http://www.red3d.com/cwr/boids).
+ * 
+ * @author Carlos Luz Junior
+ */
+public class Boid {
+	
+	// The mass of the object to move around
+	public static final Float MASS = 1f;
+	
+	// The maximum movement speed while animating
+	public static final int MAX_SPEED = 2;
+	
+	// A vector for position
+	private Vector2d position;
+	
+	// A vector for velocity
+	private Vector2d velocity;
+	
+	// The turning force vector
+	private Vector2d steerForce;
+	
+	//A list of coordinates which will make up a path
+	private ArrayList<Vector2d> checkpoints;
+	
+	// An object to hold the current path checkpoint
+	private Vector2d currentCheckpoint;
+	
+	// The location of the current checkpoint in the array
+	private int currentCheckpointIndex;
+	
+	// A double to keep track of the target distance
+	private double distanceToTarget;
+	
+	
+	/**
+	 * Vector in the direction from the character to the target (Craig W. Reynolds).
+	 */
+	private Vector2d desiredVelocity;
+	
+	
+	
+	/**
+	 * 
+	 * Constructor
+	 * @param initialPosition
+	 * @param checkpoints
+	 */
+	public Boid(Vector2d initialPosition, ArrayList<Vector2d> checkpoints) {
+		desiredVelocity = new Vector2d();
+		position = initialPosition;
+		velocity = new Vector2d(0, 0);
+		steerForce = new Vector2d();
+		distanceToTarget = 0d;
+		this.checkpoints = checkpoints;
+		currentCheckpoint = checkpoints.get(currentCheckpointIndex);
+	}
+
+	/**
+	 * Steers the boid to move toward the target (http://www.red3d.com/cwr/steer/SeekFlee.html).
+	 */
+	public void seek(Vector2d targetPosition) {
+		//Sets the value of this tuple to the vector difference of the passed tuple target position and the class position.
+		desiredVelocity.sub(targetPosition, position);
+		
+		//The formula for the length of a 2D vector is the Pythagorean Formula. a(2) + b(2) = c(2)
+		distanceToTarget = desiredVelocity.length();
+		
+		/* Operations in 2D and 3D computer graphics are often performed using copies of vectors that have been normalized ie. 
+		 * converted to unit vectors. Normalizing a vector involves two steps:
+  		1	calculate its length, then,
+  		2   divide each of its (xy or xyz) components by its length. 
+		 */
+		desiredVelocity.normalize();
+		
+		// Sets the value of this tuple to the scalar multiplication of itself.
+		desiredVelocity.scale(MAX_SPEED);
+		
+		
+		// set the steer force to the vector difference between the desired velocity and the velocity
+		steerForce.sub(desiredVelocity, velocity);
+	}
+	
+	/**
+	 * Steers the boid to move away from the target (http://www.red3d.com/cwr/steer/SeekFlee.html).
+	 */
+	public void flee(Vector2d targetPosition) {
+		
+		//essentially reverses the logic of seek
+		desiredVelocity.sub(position, targetPosition);
+		distanceToTarget = desiredVelocity.length();
+		desiredVelocity.normalize();
+		desiredVelocity.scale(MAX_SPEED);
+		steerForce.sub(desiredVelocity, velocity);
+	}
+	
+	/**
+	 * Steers the boid to arrive slowly on the target (http://www.red3d.com/cwr/steer/Arrival.html).
+	 */
+	public void arrival(Vector2d targetPosition) {
+		
+		// A numeric radius surrounding the target which dictates when the object shoudl slow down as it approaches
+		int arriveRadius = 120;
+		
+		//Sets the value of this tuple to the vector difference of the passed tuple target position and the object position.
+		desiredVelocity.sub(targetPosition, position);
+		
+		distanceToTarget = desiredVelocity.length();
+		
+		
+		if (distanceToTarget > 0) {
+			
+			Double speed = MAX_SPEED * (distanceToTarget / arriveRadius);
+			
+			//return whichever value is smaller, the calculated speed or the constant value
+			speed = Math.min(speed, MAX_SPEED);
+			
+			desiredVelocity.scale(speed / distanceToTarget);
+			
+			steerForce.sub(desiredVelocity, velocity);
+		}
+	}
+	
+	/**
+	 * Steers the boid to move along a predefined path. It follows a set of checkpoint until arrive at the last one, then start over again.
+	 */
+	public void pathFollowing() {
+		// call the seek method to move object to the passed checkpoint
+		seek(currentCheckpoint);
+		
+		//if we get closet then 10 units
+		if (distanceToTarget < 10) {
+			// increment target checkpoint
+			currentCheckpointIndex++;
+			
+			//check to see if we're at the end of the path
+			if (currentCheckpointIndex == checkpoints.size()) {
+				currentCheckpointIndex = 0;
+			}
+			
+			// get the next checkpoint
+			currentCheckpoint = checkpoints.get(currentCheckpointIndex);
+		}
+	}
+	
+	public void update(Vector2d targetPosition, BehaviorEnum behavior) {
+		chooseBehavior(targetPosition, behavior);
+		// acceleration = force / mass
+		Vector2d acceleration = new Vector2d();
+		acceleration.setX(steerForce.getX() / MASS);
+		acceleration.setY(steerForce.getY() / MASS);
+		velocity.add(acceleration);
+		position.add(velocity, position);
+	}
+	
+	// handles all behaviors, accepting a target position and the which behavior to run
+	private void chooseBehavior(Vector2d targetPosition, BehaviorEnum behavior) {
+		switch (behavior) {
+		case SEEK:
+			seek(targetPosition);
+			break;
+		case FLEE:
+			flee(targetPosition);
+			break;
+		case ARRIVAL:
+			arrival(targetPosition);
+			break;
+		case PATHFOLLOWING:
+			pathFollowing();
+			break;
+		}
+	}
+	
+	public Vector2d getSteerForce() {
+		return steerForce;
+	}
+	
+	public int getX() {
+		return (int) position.getX();
+	}
+
+	public int getY() {
+		return (int) position.getY();
+	}
+
+	public int getDistanceToTarget() {
+		return (int) distanceToTarget;
+	}
+}
